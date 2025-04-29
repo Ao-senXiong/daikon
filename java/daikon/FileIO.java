@@ -1155,34 +1155,26 @@ public final class FileIO {
    *
    * @return the stream that is connected to Chicory
    */
-  private static @Owning InputStream connectToChicory() {
+  private static @Owning InputStream connectToChicory() throws IOException {
+    Socket chicSocket = null;
 
     // bind to any free port
     try (ServerSocket daikonServer = new ServerSocket(0)) {
-
       // tell Chicory what port we have!
       System.out.println("DaikonChicoryOnlinePort=" + daikonServer.getLocalPort());
-
       daikonServer.setReceiveBufferSize(64000);
-
-      Socket chicSocket;
-      try {
-        daikonServer.setSoTimeout(5000);
-
-        // System.out.println("waiting for chicory connection on port " +
-        // daikonServer.getLocalPort());
-        chicSocket = daikonServer.accept();
-      } catch (IOException e) {
-        throw new RuntimeException("Unable to connect to Chicory", e);
+      daikonServer.setSoTimeout(5000);
+      chicSocket = daikonServer.accept();
+      return chicSocket.getInputStream();
+    } catch (Exception e) {
+      if (chicSocket != null) {
+        try {
+          chicSocket.close();
+        } catch (Exception closeException) {
+          // do nothing
+        }
       }
-
-      try {
-        return chicSocket.getInputStream();
-      } catch (IOException e) {
-        throw new RuntimeException("Unable to get Chicory's input stream", e);
-      }
-    } catch (IOException e) {
-      throw new RuntimeException("Unable to create server", e);
+      throw e;
     }
   }
 
@@ -1321,7 +1313,7 @@ public final class FileIO {
 
     /**
      * Current ppt. Used when status=DECL or SAMPLE. Can be null if this declaration was skipped
-     * because of --ppt-select-pattern or --ppt-omit-pattern.
+     * because of {@code --ppt-select-pattern} or {@code --ppt-omit-pattern}.
      */
     public @Nullable PptTopLevel ppt;
 
@@ -3111,7 +3103,6 @@ public final class FileIO {
    */
   private static void decl_error(ParseState state, String format, @Nullable Object... args) {
     @SuppressWarnings({
-      "formatter:unneeded.suppression", // temporary?
       "formatter:format.string" // https://tinyurl.com/cfissue/2584
     })
     String msg = String.format(format, args) + state.line_file_message();
